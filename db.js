@@ -5,11 +5,11 @@ const connection = mysqlcreateCondition({
     password:"",
     database:"escuela"
 });
-connection.connect((err)->{
+connection.connect((err)=>{
     if(err){
         console.error("Error al conectar", err);
     }else{
         console.log("Coneccioón a la base de datos exitosa");
     }
 });
-export default;
+export default connection;
