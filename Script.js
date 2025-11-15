@@ -21,6 +21,11 @@ async function testConexion() {
     const res = await fetch("http://localhost:3000/api/health");
     const data = await res.json();
     console.log("Conexión con servidor: OK", data);
+    
+    // Mostrar estado en la página
+    if (data.base_datos && data.base_datos === "DESCONECTADA") {
+      console.warn("⚠️ Base de datos no disponible");
+    }
   } catch (err) {
     console.error("Error de conexión con servidor:", err);
     alert("⚠️ No se puede conectar al servidor. Verifica que esté ejecutándose.");
@@ -82,15 +87,20 @@ form.addEventListener("submit", async (e) => {
 // 🔹 Función para obtener lista de alumnos (GET)
 async function obtenerAlumnos() {
   try {
-    console.log("Obteniendo alumnos...");
+    console.log("Obteniendo alumnos desde:", API_URL);
     const res = await fetch(API_URL);
     
+    console.log("Status de respuesta:", res.status);
+    console.log("OK?", res.ok);
+    
     if (!res.ok) {
-      throw new Error(`Error HTTP: ${res.status}`);
+      const errorText = await res.text();
+      console.error("Error response:", errorText);
+      throw new Error(`Error HTTP: ${res.status} - ${errorText}`);
     }
     
     const alumnos = await res.json();
-    console.log(`Alumnos recibidos: ${alumnos.length}`);
+    console.log(`Alumnos recibidos: ${alumnos.length}`, alumnos);
     
     tabla.innerHTML = "";
 
@@ -105,23 +115,41 @@ async function obtenerAlumnos() {
     }
 
     alumnos.forEach(a => {
-      const fila = `
-        <tr>
-          <td>${escapeHtml(a.nombre)}</td>
-          <td>${a.edad}</td>
-          <td>${escapeHtml(a.curso ?? "")}</td>
-          <td>
-            <button class="btn btn-warning btn-sm me-1" 
-                    onclick="editarAlumno(${a.id}, '${escapeHtml(a.nombre)}', ${a.edad}, '${escapeHtml(a.curso || '')}')">
-              Editar
-            </button>
-            <button class="btn btn-danger btn-sm" 
-                    onclick="eliminarAlumno(${a.id})">
-              Eliminar
-            </button>
-          </td>
-        </tr>`;
-      tabla.insertAdjacentHTML("beforeend", fila);
+      const fila = document.createElement('tr');
+      
+      // Crear celdas de forma segura
+      const tdNombre = document.createElement('td');
+      tdNombre.textContent = a.nombre || '';
+      
+      const tdEdad = document.createElement('td');
+      tdEdad.textContent = a.edad || '';
+      
+      const tdCurso = document.createElement('td');
+      tdCurso.textContent = a.curso || '';
+      
+      const tdAcciones = document.createElement('td');
+      
+      // Botón Editar
+      const btnEditar = document.createElement('button');
+      btnEditar.className = 'btn btn-warning btn-sm me-1';
+      btnEditar.textContent = 'Editar';
+      btnEditar.onclick = () => editarAlumno(a.id, a.nombre, a.edad, a.curso);
+      
+      // Botón Eliminar
+      const btnEliminar = document.createElement('button');
+      btnEliminar.className = 'btn btn-danger btn-sm';
+      btnEliminar.textContent = 'Eliminar';
+      btnEliminar.onclick = () => eliminarAlumno(a.id);
+      
+      tdAcciones.appendChild(btnEditar);
+      tdAcciones.appendChild(btnEliminar);
+      
+      fila.appendChild(tdNombre);
+      fila.appendChild(tdEdad);
+      fila.appendChild(tdCurso);
+      fila.appendChild(tdAcciones);
+      
+      tabla.appendChild(fila);
     });
   } catch (err) {
     console.error("Error al cargar alumnos:", err);
@@ -134,19 +162,12 @@ async function obtenerAlumnos() {
   }
 }
 
-// 🔹 Función para escapar HTML (seguridad)
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 // 🔹 Función para editar alumno
 function editarAlumno(id, nombre, edad, curso) {
   document.getElementById("alumnoId").value = id;
-  document.getElementById("nombre").value = nombre;
-  document.getElementById("edad").value = edad;
-  document.getElementById("curso").value = curso;
+  document.getElementById("nombre").value = nombre || '';
+  document.getElementById("edad").value = edad || '';
+  document.getElementById("curso").value = curso || '';
   
   editando = true;
   formTitle.textContent = "Editar alumno";
@@ -227,7 +248,3 @@ function resetForm() {
   btnSubmit.textContent = "Agregar";
   btnCancelar.style.display = "none";
 }
-
-// Hacer funciones globales para los onclick
-window.editarAlumno = editarAlumno;
-window.eliminarAlumno = eliminarAlumno;
